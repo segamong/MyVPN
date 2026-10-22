@@ -220,12 +220,15 @@ jobs:
           set -euo pipefail
           apk="V2rayNG/app/build/outputs/apk/playstore/debug/MyVPN_1.0.0_universal.apk"
           test -s "$apk"
-          gh release create "$GITHUB_REF_NAME" \
-            "$apk#MyVPN-Android-universal-debug.apk" \
-            SHA256SUMS.txt BUILD-PROVENANCE.json \
-            --title "MyVPN $GITHUB_REF_NAME (installable test build)" \
-            --notes "Universal Android APK for direct installation. This build uses an Android debug certificate; use the same signing key for future upgrade installs." \
-            --prerelease
+          assets=("$apk#MyVPN-Android-universal-debug.apk" SHA256SUMS.txt BUILD-PROVENANCE.json)
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+              --title "MyVPN $GITHUB_REF_NAME (installable test build)" \
+              --notes "Universal Android APK for direct installation. This build uses an Android debug certificate; use the same signing key for future upgrade installs." \
+              --prerelease
+          fi
 
       - name: Upload debug APKs and build provenance
         if: always()
