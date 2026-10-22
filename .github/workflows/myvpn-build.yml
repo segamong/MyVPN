@@ -212,6 +212,21 @@ jobs:
           pathlib.Path('BUILD-PROVENANCE.json').write_text(json.dumps(provenance, indent=2) + '\n')
           PY
 
+      - name: Publish installable universal APK for version tags
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          apk="V2rayNG/app/build/outputs/apk/playstore/debug/MyVPN_1.0.0_universal.apk"
+          test -s "$apk"
+          gh release create "$GITHUB_REF_NAME" \
+            "$apk#MyVPN-Android-universal-debug.apk" \
+            SHA256SUMS.txt BUILD-PROVENANCE.json \
+            --title "MyVPN $GITHUB_REF_NAME (installable test build)" \
+            --notes "Universal Android APK for direct installation. This build uses an Android debug certificate; use the same signing key for future upgrade installs." \
+            --prerelease
+
       - name: Upload debug APKs and build provenance
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
