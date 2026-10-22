@@ -1,0 +1,256 @@
+name: MyVPN Android
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: myvpn-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XRAY_SOURCE: 1f3e2c5df1c248ed42630cee2bf747643d303ecc
+  HEV_SOURCE: d9dca26c7ad0e494492244f0309e80ee583e739e
+  MOBILE_VERSION: v0.0.0-20260908204917-8b95e45f8d3e
+  GO_VERSION: 1.27.2
+  XRAY_NDK_VERSION: 29.0.14206865
+  HEV_NDK_VERSION: 30.0.16248370
+  GEOIP_SOURCE: bf01519a9e21f366266bd48c6afae430ec8febfe
+  GEOIP_CN_PRIVATE_SHA256: 64021de0988e634c24410d431e0dea55c84a1abb61c457083d5b6892ed43bf05
+
+jobs:
+  source:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      app_sha: ${{ steps.materialize.outputs.app_sha }}
+    steps:
+      - name: Check out the uploaded bootstrap commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Materialize the complete MyVPN source history once
+        id: materialize
+        run: |
+          set -euo pipefail
+          initial_sha="$(git rev-parse HEAD)"
+          if [[ -f V2rayNG/settings.gradle.kts ]]; then
+            echo "app_sha=$initial_sha" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test -s myvpn.patch
+          patch_file="$RUNNER_TEMP/myvpn.patch"
+          cp myvpn.patch "$patch_file"
+          git fetch --no-tags https://github.com/2dust/v2rayNG.git e1b73f2fa8487dfc303da52d109719c1e32386b4
+          upstream_sha="$(git rev-parse FETCH_HEAD)"
+          git switch --create materialize-myvpn "$upstream_sha"
+          git apply --check "$patch_file"
+          git apply --index "$patch_file"
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m 'Build MyVPN Android client'
+          git merge --allow-unrelated-histories --no-commit -s ours "$initial_sha"
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -m 'Preserve the MyVPN bootstrap commit'
+          app_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:refs/heads/main
+          echo "app_sha=$app_sha" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: source
+    if: always() && (needs.source.result == 'success' || needs.source.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the application and pinned native sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          submodules: recursive
+          ref: ${{ needs.source.outputs.app_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify native source revisions
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:AndroidLibXrayLite)" = "$XRAY_SOURCE"
+          test "$(git -C AndroidLibXrayLite rev-parse HEAD)" = "$XRAY_SOURCE"
+          test "$(git rev-parse HEAD:hev-socks5-tunnel)" = "$HEV_SOURCE"
+          test "$(git -C hev-socks5-tunnel rev-parse HEAD)" = "$HEV_SOURCE"
+          git submodule status --recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            V2rayNG/**/*.gradle.kts
+            V2rayNG/gradle/libs.versions.toml
+            V2rayNG/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          log-accepted-android-sdk-licenses: false
+          cmdline-tools-version: '14742923'
+          packages: 'platforms;android-37.0 build-tools;37.0.0 platform-tools'
+
+      - name: Install the native toolchains
+        run: |
+          set -euo pipefail
+          sdkmanager --channel=0 "ndk;$XRAY_NDK_VERSION" "ndk;$HEV_NDK_VERSION"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$XRAY_NDK_VERSION" >> "$GITHUB_ENV"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$HEV_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: AndroidLibXrayLite/go.sum
+
+      - name: Build Xray AAR from the exact submodule commit
+        working-directory: AndroidLibXrayLite
+        env:
+          GOTOOLCHAIN: local
+          GOFLAGS: -mod=readonly
+        run: |
+          set -euo pipefail
+          go mod download
+          go mod verify
+          go install "golang.org/x/mobile/cmd/gomobile@$MOBILE_VERSION"
+          go install "golang.org/x/mobile/cmd/gobind@$MOBILE_VERSION"
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          # At this x/mobile revision, `gomobile init` installs gobind@latest.
+          # bind initializes the SDK itself; create its work directory and keep
+          # the explicitly pinned gomobile/gobind pair instead.
+          mkdir -p "$(go env GOPATH)/pkg/gomobile" ../V2rayNG/app/libs
+          # These geo databases are tracked at XRAY_SOURCE. Avoid upstream's
+          # gen_assets.sh, which downloads mutable latest-release databases.
+          test -s assets/geoip.dat
+          test -s assets/geosite.dat
+          # CoreConfigManager rewrites cn/private rules to this smaller database.
+          curl --fail --location --retry 3 \
+            "https://raw.githubusercontent.com/Loyalsoldier/geoip/$GEOIP_SOURCE/geoip-only-cn-private.dat" \
+            -o assets/geoip-only-cn-private.dat
+          printf '%s  %s\n' "$GEOIP_CN_PRIVATE_SHA256" assets/geoip-only-cn-private.dat | sha256sum --check
+          gomobile bind -v -target=android -androidapi 24 -trimpath \
+            -ldflags='-s -w -buildid= -checklinkname=0' \
+            -o ../V2rayNG/app/libs/libv2ray.aar ./
+          git diff --exit-code -- go.mod go.sum
+
+      - name: Build both HEV libraries for all four ABIs
+        run: |
+          set -euo pipefail
+          bash compile-hevtun.sh
+          mkdir -p V2rayNG/app/libs
+          cp -R libs/. V2rayNG/app/libs/
+
+      - name: Verify native packaging inputs
+        run: |
+          set -euo pipefail
+          for abi in arm64-v8a armeabi-v7a x86_64 x86; do
+            test -s "V2rayNG/app/libs/$abi/libhev-socks5-tunnel.so"
+            test -s "V2rayNG/app/libs/$abi/libhevsockstun.so"
+            unzip -Z1 V2rayNG/app/libs/libv2ray.aar | grep -Fx "jni/$abi/libgojni.so"
+          done
+
+      - name: Run unit tests and build installable debug APKs
+        working-directory: V2rayNG
+        run: |
+          set -euo pipefail
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace \
+            :app:testPlaystoreDebugUnitTest :app:testFdroidDebugUnitTest \
+            :app:assemblePlaystoreDebug :app:assembleFdroidDebug
+
+      - name: Verify APK contents and record checksums
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import glob
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import zipfile
+
+          apks = sorted(glob.glob('V2rayNG/app/build/outputs/apk/*/debug/*.apk'))
+          if len(apks) != 10:
+              raise SystemExit(f'Expected 4 ABI APKs and 1 universal APK for each distribution; got {len(apks)}')
+          all_abis = {'arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86'}
+          required = {'libgojni.so', 'libhev-socks5-tunnel.so', 'libhevsockstun.so'}
+          checksums = []
+          for apk in apks:
+              with zipfile.ZipFile(apk) as archive:
+                  names = set(archive.namelist())
+                  for asset in ['geoip.dat', 'geosite.dat', 'geoip-only-cn-private.dat']:
+                      if f'assets/{asset}' not in names:
+                          raise SystemExit(f'{apk}: missing routing database {asset}')
+                  abis = {name.split('/')[1] for name in names if name.startswith('lib/')}
+                  expected = all_abis if '_universal.apk' in apk else {
+                      abi for abi in all_abis if apk.endswith(f'_{abi}.apk')
+                  }
+                  if not expected or abis != expected:
+                      raise SystemExit(f'{apk}: unexpected ABIs {abis}, expected {expected}')
+                  for abi in expected:
+                      for library in required:
+                          if f'lib/{abi}/{library}' not in names:
+                              raise SystemExit(f'{apk}: missing {abi}/{library}')
+              with open(apk, 'rb') as apk_file:
+                  digest = hashlib.file_digest(apk_file, 'sha256').hexdigest()
+              checksums.append(f'{digest}  {pathlib.Path(apk).name}')
+          pathlib.Path('SHA256SUMS.txt').write_text('\n'.join(checksums) + '\n')
+          provenance = {
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'commit': os.environ['GITHUB_SHA'],
+              'run': os.environ['GITHUB_RUN_ID'],
+              'xray_source': os.environ['XRAY_SOURCE'],
+              'hev_source': os.environ['HEV_SOURCE'],
+              'gomobile': os.environ['MOBILE_VERSION'],
+              'go': os.environ['GO_VERSION'],
+              'xray_ndk': os.environ['XRAY_NDK_VERSION'],
+              'hev_ndk': os.environ['HEV_NDK_VERSION'],
+              'geoip_cn_private_source': os.environ['GEOIP_SOURCE'],
+              'geoip_cn_private_sha256': os.environ['GEOIP_CN_PRIVATE_SHA256'],
+              'signing': 'Android debug certificate generated on the CI runner',
+          }
+          pathlib.Path('BUILD-PROVENANCE.json').write_text(json.dumps(provenance, indent=2) + '\n')
+          PY
+
+      - name: Upload debug APKs and build provenance
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: MyVPN-debug-apks-${{ github.sha }}
+          path: |
+            V2rayNG/app/build/outputs/apk/*/debug/*.apk
+            SHA256SUMS.txt
+            BUILD-PROVENANCE.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload test and build reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: MyVPN-reports-${{ github.sha }}
+          path: |
+            V2rayNG/app/build/reports/
+            V2rayNG/app/build/test-results/
+            V2rayNG/build/reports/
+          if-no-files-found: warn
+          retention-days: 30
