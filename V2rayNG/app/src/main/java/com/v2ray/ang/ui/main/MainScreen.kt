@@ -196,6 +196,7 @@ fun MainScreen(
                     .imePadding()
             ) {
                 val compact = maxHeight < 480.dp || LocalDensity.current.fontScale > 1.5f
+                val connectionCardMaxHeight = this.maxHeight * 0.6f
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -211,7 +212,7 @@ fun MainScreen(
                         onAction = onAction,
                         modifier = Modifier
                             .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .heightIn(max = maxHeight * 0.6f)
+                            .heightIn(max = connectionCardMaxHeight)
                     )
                     MyVpnProfilesHeading()
 
