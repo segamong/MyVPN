@@ -23,65 +23,28 @@ env:
   GEOIP_CN_PRIVATE_SHA256: 64021de0988e634c24410d431e0dea55c84a1abb61c457083d5b6892ed43bf05
 
 jobs:
-  source:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    outputs:
-      app_sha: ${{ steps.materialize.outputs.app_sha }}
-    steps:
-      - name: Check out the uploaded bootstrap commit
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Materialize the complete MyVPN source history once
-        id: materialize
-        run: |
-          set -euo pipefail
-          initial_sha="$(git rev-parse HEAD)"
-          if [[ -f V2rayNG/settings.gradle.kts ]]; then
-            echo "app_sha=$initial_sha" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          test -s myvpn.patch
-          patch_file="$RUNNER_TEMP/myvpn.patch"
-          cp myvpn.patch "$patch_file"
-          git fetch --no-tags https://github.com/2dust/v2rayNG.git e1b73f2fa8487dfc303da52d109719c1e32386b4
-          upstream_sha="$(git rev-parse FETCH_HEAD)"
-          git switch --create materialize-myvpn "$upstream_sha"
-          git apply --check "$patch_file"
-          git apply --index "$patch_file"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git -c user.name='github-actions[bot]' \
-            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -m 'Build MyVPN Android client'
-          git merge --allow-unrelated-histories --no-commit -s ours "$initial_sha"
-          git -c user.name='github-actions[bot]' \
-            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-            commit -m 'Preserve the MyVPN bootstrap commit'
-          app_sha="$(git rev-parse HEAD)"
-          git push origin HEAD:refs/heads/main
-          echo "app_sha=$app_sha" >> "$GITHUB_OUTPUT"
-
   build:
-    needs: source
-    if: always() && (needs.source.result == 'success' || needs.source.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     defaults:
       run:
         shell: bash
     steps:
-      - name: Check out the application and pinned native sources
+      - name: Check out the MyVPN bootstrap repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          submodules: recursive
-          ref: ${{ needs.source.outputs.app_sha || github.sha }}
-          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Reconstruct the pinned upstream source and apply MyVPN changes
+        run: |
+          set -euo pipefail
+          patch_file="$RUNNER_TEMP/myvpn.patch"
+          cp myvpn.patch "$patch_file"
+          git fetch --no-tags https://github.com/2dust/v2rayNG.git e1b73f2fa8487dfc303da52d109719c1e32386b4
+          git switch --create myvpn-build-source FETCH_HEAD
+          git apply --check "$patch_file"
+          git apply "$patch_file"
+          git submodule update --init --recursive
 
       - name: Verify native source revisions
         run: |
