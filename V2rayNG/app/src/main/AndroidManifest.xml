@@ -62,6 +62,11 @@
         </service>
 
         <activity
+            android:name=".ui.server.ThreeXUiClientActivity"
+            android:exported="false"
+            android:label="@string/myvpn_create_client" />
+
+        <activity
             android:name=".ui.main.MainActivity"
             android:exported="true"
             android:launchMode="singleTask">
