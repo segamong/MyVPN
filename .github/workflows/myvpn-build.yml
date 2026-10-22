@@ -54,6 +54,8 @@ jobs:
           git switch --create materialize-myvpn "$upstream_sha"
           git apply --check "$patch_file"
           git apply --index "$patch_file"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit -m 'Build MyVPN Android client'
