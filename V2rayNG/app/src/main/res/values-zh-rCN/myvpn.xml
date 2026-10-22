@@ -18,4 +18,23 @@
     <string name="myvpn_create_vless">Create a VLESS profile</string>
     <string name="myvpn_no_search_results">No matching profiles</string>
     <string name="myvpn_search_hint">Try another name or close search to see all profiles.</string>
+    <string name="myvpn_create_client">Create client in 3x-ui</string>
+    <string name="myvpn_panel_url">3x-ui panel URL</string>
+    <string name="myvpn_username">Panel login</string>
+    <string name="myvpn_password">Panel password</string>
+    <string name="myvpn_public_host">Public VPN server address</string>
+    <string name="myvpn_working">Working…</string>
+    <string name="myvpn_load_inbounds">Connect and load VLESS connections</string>
+    <string name="myvpn_vless_inbound">VLESS connection</string>
+    <string name="myvpn_client_name">Client name</string>
+    <string name="myvpn_create">Create and add profile</string>
+    <string name="myvpn_required_panel_credentials">Enter the panel address, login and password.</string>
+    <string name="myvpn_no_vless_inbounds">No enabled VLESS connections found.</string>
+    <string name="myvpn_connect_failed">Could not connect to 3x-ui:</string>
+    <string name="myvpn_required_client_fields">Enter a client name and public server address.</string>
+    <string name="myvpn_load_first">Load connections from the panel first.</string>
+    <string name="myvpn_client_created">Client created and added to VPN profiles.</string>
+    <string name="myvpn_create_failed">Could not create the client:</string>
+    <string name="myvpn_profile_import_failed">The client was created, but the profile link could not be imported.</string>
+    <string name="myvpn_https_hint">Use the panel HTTPS address with a valid certificate to protect your password.</string>
 </resources>
