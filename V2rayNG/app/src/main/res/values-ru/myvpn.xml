@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="myvpn_connection_title">ВАШЕ ПОДКЛЮЧЕНИЕ</string>
+    <string name="myvpn_connected">Служба запущена</string>
+    <string name="myvpn_disconnected">Служба остановлена</string>
+    <string name="myvpn_connect">Подключить</string>
+    <string name="myvpn_disconnect">Отключить</string>
+    <string name="myvpn_add_profile">Добавить</string>
+    <string name="myvpn_test_connection">Проверить подключение</string>
+    <string name="myvpn_selected_profile_hint">Профиль выбран. Подключитесь, когда будете готовы.</string>
+    <string name="myvpn_select_profile_hint">Добавьте или выберите профиль для подключения.</string>
+    <string name="myvpn_running_hint">Служба работает с выбранным профилем.</string>
+    <string name="myvpn_profiles_title">Ваши профили</string>
+    <string name="myvpn_empty_title">Здесь пока нет профилей</string>
+    <string name="myvpn_empty_hint">Скопируйте ссылку клиента или отсканируйте его QR-код в панели 3x-ui. Также можно создать профиль с параметрами вашего сервера.</string>
+    <string name="myvpn_paste_link">Вставить ссылку</string>
+    <string name="myvpn_scan_qr">Сканировать QR-код</string>
+    <string name="myvpn_create_vless">Создать профиль VLESS</string>
+    <string name="myvpn_no_search_results">Профили не найдены</string>
+    <string name="myvpn_search_hint">Попробуйте другое имя или закройте поиск, чтобы увидеть все профили.</string>
+</resources>

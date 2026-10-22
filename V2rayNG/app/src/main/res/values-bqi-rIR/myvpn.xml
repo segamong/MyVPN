@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="myvpn_connection_title">YOUR CONNECTION</string>
+    <string name="myvpn_connected">Service running</string>
+    <string name="myvpn_disconnected">Service stopped</string>
+    <string name="myvpn_connect">Connect</string>
+    <string name="myvpn_disconnect">Disconnect</string>
+    <string name="myvpn_add_profile">Add profile</string>
+    <string name="myvpn_test_connection">Check connection</string>
+    <string name="myvpn_selected_profile_hint">A profile is selected. Connect when you are ready.</string>
+    <string name="myvpn_select_profile_hint">Add or select a profile to connect.</string>
+    <string name="myvpn_running_hint">The service is running with your selected profile.</string>
+    <string name="myvpn_profiles_title">Your profiles</string>
+    <string name="myvpn_empty_title">No profiles here yet</string>
+    <string name="myvpn_empty_hint">Copy a client link or scan its QR code from your 3x-ui panel. You can also create a profile using your server details.</string>
+    <string name="myvpn_paste_link">Paste link</string>
+    <string name="myvpn_scan_qr">Scan QR code</string>
+    <string name="myvpn_create_vless">Create a VLESS profile</string>
+    <string name="myvpn_no_search_results">No matching profiles</string>
+    <string name="myvpn_search_hint">Try another name or close search to see all profiles.</string>
+</resources>
