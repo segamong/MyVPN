@@ -18,4 +18,23 @@
     <string name="myvpn_create_vless">Создать профиль VLESS</string>
     <string name="myvpn_no_search_results">Профили не найдены</string>
     <string name="myvpn_search_hint">Попробуйте другое имя или закройте поиск, чтобы увидеть все профили.</string>
+    <string name="myvpn_create_client">Создать клиента в 3x-ui</string>
+    <string name="myvpn_panel_url">Адрес панели 3x-ui</string>
+    <string name="myvpn_username">Логин панели</string>
+    <string name="myvpn_password">Пароль панели</string>
+    <string name="myvpn_public_host">Публичный адрес VPN-сервера</string>
+    <string name="myvpn_working">Выполняется…</string>
+    <string name="myvpn_load_inbounds">Подключиться и загрузить VLESS-подключения</string>
+    <string name="myvpn_vless_inbound">VLESS-подключение</string>
+    <string name="myvpn_client_name">Имя клиента</string>
+    <string name="myvpn_create">Создать и добавить профиль</string>
+    <string name="myvpn_required_panel_credentials">Введите адрес панели, логин и пароль.</string>
+    <string name="myvpn_no_vless_inbounds">Включённых VLESS-подключений не найдено.</string>
+    <string name="myvpn_connect_failed">Не удалось подключиться к 3x-ui:</string>
+    <string name="myvpn_required_client_fields">Введите имя клиента и публичный адрес сервера.</string>
+    <string name="myvpn_load_first">Сначала загрузите подключения из панели.</string>
+    <string name="myvpn_client_created">Клиент создан, профиль добавлен в список VPN.</string>
+    <string name="myvpn_create_failed">Не удалось создать клиента:</string>
+    <string name="myvpn_profile_import_failed">Клиент создан, но ссылку профиля импортировать не удалось.</string>
+    <string name="myvpn_https_hint">Используйте HTTPS-адрес панели с действительным сертификатом, чтобы защитить пароль.</string>
 </resources>
