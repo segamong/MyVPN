@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: myvpn-android-${{ github.ref }}
@@ -34,16 +34,32 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Reconstruct the pinned upstream source and apply MyVPN changes
         run: |
           set -euo pipefail
+          if [[ -f V2rayNG/settings.gradle.kts ]]; then
+            git submodule update --init --recursive
+            exit 0
+          fi
+          bootstrap_sha="$(git rev-parse HEAD)"
           patch_file="$RUNNER_TEMP/myvpn.patch"
           cp myvpn.patch "$patch_file"
           git fetch --no-tags https://github.com/2dust/v2rayNG.git e1b73f2fa8487dfc303da52d109719c1e32386b4
-          git switch --create myvpn-build-source FETCH_HEAD
+          git switch --detach FETCH_HEAD
           git apply --check "$patch_file"
           git apply "$patch_file"
+          git checkout "$bootstrap_sha" -- .github/workflows/myvpn-build.yml
+          git rm -f --ignore-unmatch .github/workflows/build.yml .github/workflows/fastlane.yml
+          git add -A
+          tree_sha="$(git write-tree)"
+          commit_sha="$(printf '%s\n' 'Import MyVPN Android source tree' | \
+            git -c user.name='github-actions[bot]' \
+                -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+                commit-tree "$tree_sha" -p "$bootstrap_sha")"
+          git push origin "$commit_sha:refs/heads/main"
+          git checkout --detach "$commit_sha"
           git submodule update --init --recursive
 
       - name: Verify native source revisions
